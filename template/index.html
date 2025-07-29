@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Video Background Replacement</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(to right, #f9f9f9, #e0eafc);
+      display: flex;
+      justify-content: center;
+      padding-top: 40px;
+    }
+
+    #darkModeToggle {
+      position: fixed;
+      top: 24px;
+      right: 32px;
+      z-index: 1000;
+      margin: 0;
+      padding: 6px 12px;      /* Even smaller padding */
+      font-size: 13px;        /* Smaller font size */
+      border-radius: 6px;
+      background: #222;       /* Dark button for light mode */
+      color: #fff;
+      border: none;
+      transition: background 0.3s, color 0.3s;
+    }
+    #darkModeToggle:hover {
+      background: #444;
+    }
+    body.dark-mode #darkModeToggle {
+      background: #eee;       /* Light button for dark mode */
+      color: #222;
+    }
+    body.dark-mode #darkModeToggle:hover {
+      background: #ccc;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 25px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    label {
+      font-weight: 600;
+      color: #333;
+    }
+
+    input[type="file"],
+    select {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      background-color: #fdfdfd;
+    }
+
+    input[type="submit"], button {
+      padding: 12px 25px;
+      margin-top: 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    input[type="submit"] {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #45a049;
+    }
+
+    .download-btn {
+      background-color: #2196f3;
+      color: white;
+      margin-top: 15px;
+    }
+
+    .download-btn:hover {
+      background-color: #1976d2;
+    }
+
+    .processing {
+      margin-top: 20px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .spinner {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .quote {
+      font-size: 14px;
+      color: #666;
+      margin-top: 10px;
+    }
+
+    video {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .time-display {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .reset-btn {
+      margin-top: 10px;
+      background-color: #f44336;
+      color: white;
+    }
+
+    .reset-btn:hover {
+      background-color: #c62828;
+    }
+
+    /* Dark mode styles */
+    body.dark-mode {
+      background: linear-gradient(to right, #232526, #414345);
+      color: #eee;
+    }
+
+    .container.dark-mode {
+      background: #232526;
+      color: #eee;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .container.dark-mode label,
+    .container.dark-mode .time-display,
+    .container.dark-mode .quote {
+      color: #ccc;
+    }
+
+    .container.dark-mode input[type="file"],
+    .container.dark-mode select {
+      background-color: #2c2c2c;
+      color: #eee;
+      border: 1px solid #444;
+    }
+
+    .container.dark-mode input[type="submit"] {
+      background-color: #1976d2;
+    }
+
+    .container.dark-mode input[type="submit"]:hover {
+      background-color: #1565c0;
+    }
+
+    .container.dark-mode .download-btn {
+      background-color: #4caf50;
+    }
+
+    .container.dark-mode .download-btn:hover {
+      background-color: #388e3c;
+    }
+
+    .container.dark-mode .reset-btn {
+      background-color: #c62828;
+    }
+
+    .container.dark-mode .reset-btn:hover {
+      background-color: #b71c1c;
+    }
+
+    .container.dark-mode hr {
+      border-top: 1px solid #444;
+    }
+  </style>
+  <script>
+    const quotes = [
+      "Removing green screen with AI magic...",
+      "Compositing video… Hang tight!",
+      "Blending subject and background...",
+      "Enhancing video clarity...",
+      "Good things take time!"
+    ];
+
+    let timerInterval;
+    let startTimestamp;
+
+    function showProcessingMessage() {
+      const msg = document.getElementById("processing");
+      const quote = document.getElementById("quote");
+      const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+      quote.textContent = randomQuote;
+      msg.style.display = "block";
+
+      startTimestamp = Date.now();
+      const timerEl = document.getElementById("elapsed");
+
+      timerInterval = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startTimestamp) / 1000);
+        timerEl.textContent = seconds;
+      }, 1000);
+    }
+
+    window.onload = () => {
+      const video = document.querySelector("video");
+      if (video) {
+        video.onloadeddata = () => {
+          clearInterval(timerInterval);
+        };
+      }
+    };
+
+    document.addEventListener("DOMContentLoaded", function() {
+      const toggleBtn = document.getElementById("darkModeToggle");
+      const body = document.body;
+      const container = document.querySelector(".container");
+
+      toggleBtn.onclick = function() {
+        body.classList.toggle("dark-mode");
+        container.classList.toggle("dark-mode");
+        toggleBtn.textContent = body.classList.contains("dark-mode") ? "☀️ Light Mode" : "🌙 Dark Mode";
+      };
+    });
+  </script>
+</head>
+<body>
+  <button id="darkModeToggle">🌙 Dark Mode</button>
+  <div class="container">
+    <h2>AI Video Background Replacement</h2>
+
+    <form method="post" enctype="multipart/form-data" onsubmit="showProcessingMessage();">
+      <div class="form-group">
+        <label for="input_video">Upload Your Video</label>
+        <input type="file" name="input_video" id="input_video" accept="video/*" required>
+
+        <label for="bg_choice">Choose Background Video</label>
+        <select name="bg_choice" id="bg_choice" required>
+          <option value="" disabled selected>Select Background Video</option>
+          {% for bg in bg_videos %}
+            <option value="{{ bg }}">{{ bg }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <input type="submit" value="Start Processing">
+    </form>
+
+    <div id="processing" class="processing" style="display:none;">
+      <span><span class="spinner">⚙️</span>Processing... Please wait</span>
+      <div class="quote" id="quote"></div>
+      <div class="time-display">⏱️ Time elapsed: <span id="elapsed">0</span> sec</div>
+    </div>
+
+    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+
+    {% if video_ready %}
+      <video controls>
+        <source src="{{ url_for('static', filename='output_final.mp4') }}?t={{ timestamp }}" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+
+      <div class="time-display">📦 Server-side processing: {{ elapsed_time }} sec</div>
+      <br>
+
+      <a href="{{ url_for('download_video') }}">
+        <button class="download-btn">Download Final Video</button>
+      </a>
+
+      <form method="get">
+        <button type="submit" class="reset-btn">Reset & Upload Again</button>
+      </form>
+    {% endif %}
+  </div>
+</body>
+</html>
